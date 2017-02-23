@@ -20,18 +20,36 @@
 #include <gst/gst.h>
 
 gboolean
-msg_handler (GstBus *bus,
-             GstMessage *m,
-             gpointer user_data)
+device_monitor_bus_handler (GstBus *bus,
+                            GstMessage *m,
+                            gpointer user_data)
 {
-  g_debug ("message type %d", m->type);
+  g_debug ("device monitor bus message type %d", m->type);
 
   const GstStructure *s = gst_message_get_structure (m);
   if (s == NULL)
             return TRUE;
 
   gchar *str = gst_structure_to_string (s);
-  g_debug ("struct %s", str);
+  g_debug ("device monitor struct %s", str);
+  g_free (str);
+
+  return TRUE;
+}
+
+gboolean
+pipeline_bus_handler (GstBus *bus,
+             GstMessage *m,
+             gpointer user_data)
+{
+  g_debug ("pipeline message type %d", m->type);
+
+  const GstStructure *s = gst_message_get_structure (m);
+  if (s == NULL)
+            return TRUE;
+
+  gchar *str = gst_structure_to_string (s);
+  g_debug ("pipeline struct %s", str);
   g_free (str);
 
   return TRUE;
@@ -72,8 +90,17 @@ main (int argc, char *argv[])
     }
 
   GstBus *bus = gst_element_get_bus (bin);
-  gst_bus_add_watch (bus, msg_handler, NULL);
+  gst_bus_add_watch (bus, pipeline_bus_handler, NULL);
   gst_object_unref (bus);
+
+  GstDeviceMonitor *mon = gst_device_monitor_new ();
+  GstBus *monBus = gst_device_monitor_get_bus (mon);
+  gst_bus_add_watch (monBus, device_monitor_bus_handler, NULL);
+  if (!gst_device_monitor_start (mon))
+    {
+      g_error("can't start device monitor\n");
+      goto failure2;
+    }
 
   gst_element_set_state (bin, GST_STATE_PLAYING);
 
@@ -84,6 +111,10 @@ main (int argc, char *argv[])
     }
 
   g_main_loop_run (loop);
+
+ failure2:
+  gst_object_unref (monBus);
+  gst_object_unref (mon);
 
  failure:
   gst_object_unref (bin);
