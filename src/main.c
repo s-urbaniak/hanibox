@@ -16,13 +16,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
 #include <gst/gst.h>
 
+gboolean
+msg_handler (GstBus *bus,
+             GstMessage *m,
+             gpointer user_data)
+{
+  g_debug ("message type %d", m->type);
+
+  const GstStructure *s = gst_message_get_structure (m);
+  if (s == NULL)
+            return TRUE;
+
+  gchar *str = gst_structure_to_string (s);
+  g_debug ("struct %s", str);
+  g_free (str);
+
+  return TRUE;
+}
+
 int
-main(int argc, char *argv[])
+main (int argc, char *argv[])
 {
   gst_init (&argc, &argv);
   GMainLoop *loop = g_main_loop_new(NULL, FALSE);
+
   GstElement *bin = gst_pipeline_new ("bin");
   GstElement *src = gst_element_factory_make ("autoaudiosrc", "src");
   GstElement *audioconvert = gst_element_factory_make ("audioconvert", NULL);
@@ -50,6 +70,10 @@ main(int argc, char *argv[])
       g_error("can't link elements\n");
       goto failure;
     }
+
+  GstBus *bus = gst_element_get_bus (bin);
+  gst_bus_add_watch (bus, msg_handler, NULL);
+  gst_object_unref (bus);
 
   gst_element_set_state (bin, GST_STATE_PLAYING);
 
