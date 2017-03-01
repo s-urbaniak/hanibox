@@ -176,26 +176,26 @@ device_list (void)
   snd_ctl_card_info_alloca (&info);
 
   snd_pcm_info_t *pcminfo;
-  snd_pcm_info_alloca(&pcminfo);
-  card = -1;
+  snd_pcm_info_alloca (&pcminfo);
 
-  if (snd_card_next(&card) < 0 || card < 0) {
+  card = -1;
+  if (snd_card_next (&card) < 0 || card < 0) {
     g_error ("no soundcards found...");
     return;
   }
 
   while (card >= 0) {
-    char name[32];
-    sprintf(name, "hw:%d", card);
+    GString *name = g_string_new (NULL);
+    g_string_printf(name, "hw:%d", card);
 
-    if ((err = snd_ctl_open(&handle, name, 0)) < 0) {
-      g_error ("control open (%i): %s", card, snd_strerror(err));
+    if ((err = snd_ctl_open (&handle, name->str, 0)) < 0) {
+      g_error ("control open (%i): %s", card, snd_strerror (err));
       goto next_card;
     }
 
-    if ((err = snd_ctl_card_info(handle, info)) < 0) {
-      g_error ("control hardware info (%i): %s", card, snd_strerror(err));
-      snd_ctl_close(handle);
+    if ((err = snd_ctl_card_info (handle, info)) < 0) {
+      g_error ("control hardware info (%i): %s", card, snd_strerror (err));
+      snd_ctl_close (handle);
       goto next_card;
     }
 
@@ -203,47 +203,53 @@ device_list (void)
 
     while (1) {
       unsigned int count;
-      if (snd_ctl_pcm_next_device(handle, &dev)<0)
+
+      if (snd_ctl_pcm_next_device (handle, &dev)<0)
         g_error("snd_ctl_pcm_next_device");
 
       if (dev < 0)
         break;
 
-      snd_pcm_info_set_device(pcminfo, dev);
-      snd_pcm_info_set_subdevice(pcminfo, 0);
-      snd_pcm_info_set_stream(pcminfo, stream);
+      snd_pcm_info_set_device (pcminfo, dev);
+      snd_pcm_info_set_subdevice (pcminfo, 0);
+      snd_pcm_info_set_stream (pcminfo, stream);
 
-      if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
+      if ((err = snd_ctl_pcm_info (handle, pcminfo)) < 0) {
         if (err != -ENOENT)
-          g_error("control digital audio info (%i): %s", card, snd_strerror(err));
+          g_error ("control digital audio info (%i): %s",
+                   card, snd_strerror(err));
 
         continue;
       }
 
       printf("card %i: %s [%s], device %i: %s [%s]\n",
-             card, snd_ctl_card_info_get_id(info), snd_ctl_card_info_get_name(info),
+             card, snd_ctl_card_info_get_id (info), snd_ctl_card_info_get_name (info),
              dev,
              snd_pcm_info_get_id(pcminfo),
              snd_pcm_info_get_name(pcminfo));
 
-      count = snd_pcm_info_get_subdevices_count(pcminfo);
+      count = snd_pcm_info_get_subdevices_count (pcminfo);
 
       printf("  Subdevices: %i/%i\n",
-              snd_pcm_info_get_subdevices_avail(pcminfo), count);
+              snd_pcm_info_get_subdevices_avail (pcminfo), count);
+
       for (idx = 0; idx < (int)count; idx++) {
-        snd_pcm_info_set_subdevice(pcminfo, idx);
-        if ((err = snd_ctl_pcm_info(handle, pcminfo)) < 0) {
-          g_error("control digital audio playback info (%i): %s", card, snd_strerror(err));
+        snd_pcm_info_set_subdevice (pcminfo, idx);
+
+        if ((err = snd_ctl_pcm_info (handle, pcminfo)) < 0) {
+          g_error ("control digital audio playback info (%i): %s",
+                   card, snd_strerror (err));
         } else {
           printf("  Subdevice #%i: %s\n",
                  idx, snd_pcm_info_get_subdevice_name(pcminfo));
         }
       }
     }
-    snd_ctl_close(handle);
+    snd_ctl_close (handle);
 
   next_card:
-    if (snd_card_next(&card) < 0) {
+    g_string_free (name, TRUE);
+    if (snd_card_next (&card) < 0) {
       g_error ("snd_card_next");
       break;
     }
