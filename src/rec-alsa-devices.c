@@ -46,5 +46,43 @@ rec_alsa_devices_new (GError **error)
     return NULL;
   }
 
+  while (card >=0)
+    {
+      GString *name = g_string_new (NULL);
+      g_string_printf(name, "hw:%d", card);
+
+      if ((err = snd_ctl_open (&handle, name->str, 0)) < 0)
+        {
+          g_error ("control open (%i): %s", card, snd_strerror (err));
+          goto next_card;
+        }
+
+      if ((err = snd_ctl_card_info (handle, info)) < 0)
+        {
+          g_error ("control hardware info (%i): %s", card, snd_strerror (err));
+          snd_ctl_close (handle);
+          goto next_card;
+        }
+
+      dev = -1;
+
+      while (TRUE) {
+        unsigned int count;
+
+        if (snd_ctl_pcm_next_device (handle, &dev)<0)
+          g_error("snd_ctl_pcm_next_device");
+
+        if (dev < 0)
+          break;
+      }
+    next_card:
+      g_string_free (name, TRUE);
+      if (snd_card_next (&card) < 0)
+        {
+          g_error ("snd_card_next");
+          break;
+      }
+    }
+
   return ret;
 }
