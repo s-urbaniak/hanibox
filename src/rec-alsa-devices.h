@@ -13,6 +13,7 @@ typedef enum
 } RecAlsaError;
 
 typedef struct {
+
   GString *card, *device, *name;
 } RecAlsaDevice;
 
