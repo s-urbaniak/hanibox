@@ -14,7 +14,8 @@ typedef enum
 
 typedef struct {
 
-  GString *card, *device, *name;
+  GString *card, *card_name;
+  GString *device, *device_name;
 } RecAlsaDevice;
 
 GArray* rec_alsa_devices_new (GError **error);

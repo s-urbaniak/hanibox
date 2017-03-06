@@ -9,8 +9,9 @@ rec_alsa_devices_destroy (gpointer data)
   if (dev)
     {
       g_string_free (dev->card, TRUE);
+      g_string_free (dev->card_name, TRUE);
       g_string_free (dev->device, TRUE);
-      g_string_free (dev->name, TRUE);
+      g_string_free (dev->device_name, TRUE);
     }
 }
 
@@ -38,13 +39,14 @@ rec_alsa_devices_new (GError **error)
   snd_pcm_info_alloca (&pcminfo);
 
   card = -1;
-  if (snd_card_next (&card) < 0 || card < 0) {
-    g_set_error (error,
-                 REC_ALSA_ERROR,
-                 REC_ALSA_ERROR_NO_SOUNDCARDS,
-                 "no soundcards found");
-    return NULL;
-  }
+  if (snd_card_next (&card) < 0 || card < 0)
+    {
+      g_set_error (error,
+                   REC_ALSA_ERROR,
+                   REC_ALSA_ERROR_NO_SOUNDCARDS,
+                   "no soundcards found");
+      return NULL;
+    }
 
   while (card >=0)
     {
@@ -86,10 +88,13 @@ rec_alsa_devices_new (GError **error)
           }
 
           RecAlsaDevice alsa_dev = { 0 };
-          alsa_dev.card = g_string_new (snd_ctl_card_info_get_name (info));
-          alsa_dev.device = g_string_new (snd_pcm_info_get_name (pcminfo));
-          alsa_dev.name = g_string_new (NULL);
-          g_string_printf (alsa_dev.name, "hw:%d,%d", card, dev);
+          alsa_dev.card = g_string_new (NULL);
+          g_string_printf (alsa_dev.card, "hw:%d", card);
+          alsa_dev.card_name = g_string_new (snd_ctl_card_info_get_name (info));
+
+          alsa_dev.device = g_string_new (NULL);
+          g_string_printf (alsa_dev.device, "hw:%d,%d", card, dev);
+          alsa_dev.device_name = g_string_new (snd_pcm_info_get_name (pcminfo));
 
           g_array_append_val (ret, alsa_dev);
         }
@@ -100,7 +105,7 @@ rec_alsa_devices_new (GError **error)
         {
           g_error ("snd_card_next");
           break;
-      }
+        }
     }
 
   return ret;

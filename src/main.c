@@ -22,6 +22,7 @@
 #include <alsa/asoundlib.h>
 
 #include "rec-alsa-devices.h"
+#include "rec-alsa-mixer.h"
 
 gboolean
 device_monitor_bus_handler (GstBus *bus,
@@ -189,13 +190,33 @@ main (int argc, char *argv[])
   GstElement *filesink = gst_element_factory_make ("filesink", NULL);
   g_assert (filesink);
 
-  GArray *devices = rec_alsa_devices_new (NULL);
-  g_debug ("devices %d", devices->len);
-  RecAlsaDevice dev = g_array_index(devices, RecAlsaDevice, devices->len-1);
-  g_debug ("last device \"%s\" \"%s\" \"%s\"", dev.card->str, dev.device->str, dev.name->str);
+  GError *error = NULL;
+  GArray *devices = rec_alsa_devices_new (&error);
+  if (error != NULL)
+    {
+      g_printerr ("error listing ALSA devices: %s", error->message);
+      return 1;
+    }
+
+  RecAlsaDevice dev = g_array_index (devices, RecAlsaDevice, devices->len-1);
+  g_debug ("last device \"%s\" (%s) \"%s\" (%s)",
+           dev.card->str, dev.card_name->str,
+           dev.device->str, dev.device_name->str);
+
+  RecAlsaMixer *mixer = rec_alsa_mixer_new ();
+
+  g_object_set (G_OBJECT (mixer),
+                "device", dev.card->str,
+                NULL);
+
+  if (!rec_alsa_mixer_open (mixer, &error))
+    {
+      g_printerr ("error opening ALSA mixer: %s\n", error->message);
+      return 1;
+    }
 
   g_object_set (G_OBJECT (src),
-                "device", dev.name->str,
+                "device", dev.card->str,
                 NULL);
 
   g_array_free (devices, TRUE);
