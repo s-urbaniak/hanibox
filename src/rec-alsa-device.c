@@ -1,5 +1,5 @@
 #include <alsa/asoundlib.h>
-#include "rec-alsa-devices.h"
+#include "rec-alsa-device.h"
 
 static void
 rec_alsa_devices_destroy (gpointer data)

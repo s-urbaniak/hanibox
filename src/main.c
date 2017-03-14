@@ -21,16 +21,14 @@
 #include <gst/gst.h>
 #include <alsa/asoundlib.h>
 
-#include "rec-alsa-devices.h"
-#include "rec-alsa-mixer.h"
+#include "rec-alsa-device.h"
+#include "rec-device-monitor.h"
 
 gboolean
 device_monitor_bus_handler (GstBus *bus,
                             GstMessage *m,
                             gpointer user_data)
 {
-  g_debug ("device monitor bus message type %d", m->type);
-
   const GstStructure *s = gst_message_get_structure (m);
   if (s == NULL)
             return TRUE;
@@ -96,6 +94,7 @@ debug_rms (const GstStructure *s)
   GstClockTime endtime;
   gdouble rms_dB, peak_dB, decay_dB;
   gdouble rms;
+
   const GValue *array_val;
   const GValue *value;
   GValueArray *rms_arr, *peak_arr, *decay_arr;
@@ -121,7 +120,7 @@ debug_rms (const GstStructure *s)
            GST_TIME_ARGS (endtime), channels);
   for (i = 0; i < channels; ++i) {
 
-    g_print ("channel %d\n", i);
+    // g_print ("channel %d\n", i);
     value = rms_arr->values + i;
     rms_dB = g_value_get_double (value);
 
@@ -132,7 +131,7 @@ debug_rms (const GstStructure *s)
     decay_dB = g_value_get_double (value);
 
     g_print ("    RMS: %f dB, peak: %f dB, decay: %f dB\n",
-             rms_dB, peak_dB, decay_dB);
+            rms_dB, peak_dB, decay_dB);
 
     /*     converting from dB to normal gives us a value between 0.0 and 1.0 */
     rms = pow (10, rms_dB / 20);
@@ -145,25 +144,25 @@ pipeline_bus_handler (GstBus *bus,
                       GstMessage *m,
                       gpointer user_data)
 {
-  g_debug ("pipeline message type %d", m->type);
+  // g_debug ("pipeline message type %d", m->type);
 
   const GstStructure *s = gst_message_get_structure (m);
   if (s == NULL)
     return TRUE;
 
-  debug_structure_fields (s);
+  // debug_structure_fields (s);
 
-  gchar *str = gst_structure_to_string (s);
-  g_debug ("pipeline struct %s", str);
-  g_free (str);
+  // gchar *str = gst_structure_to_string (s);
+  // g_debug ("pipeline struct %s", str);
+  // g_free (str);
 
-  const gchar *name = gst_structure_get_name (s);
-  g_debug ("%s", name);
+  // const gchar *name = gst_structure_get_name (s);
+  // g_debug ("%s", name);
 
   if (m->type != GST_MESSAGE_ELEMENT)
     return TRUE;
 
-  debug_rms (s);
+  // debug_rms (s);
   return TRUE;
 }
 
@@ -202,18 +201,6 @@ main (int argc, char *argv[])
   g_debug ("last device \"%s\" (%s) \"%s\" (%s)",
            dev.card->str, dev.card_name->str,
            dev.device->str, dev.device_name->str);
-
-  RecAlsaMixer *mixer = rec_alsa_mixer_new ();
-
-  g_object_set (G_OBJECT (mixer),
-                "device", dev.card->str,
-                NULL);
-
-  if (!rec_alsa_mixer_open (mixer, &error))
-    {
-      g_printerr ("error opening ALSA mixer: %s\n", error->message);
-      return 1;
-    }
 
   g_object_set (G_OBJECT (src),
                 "device", dev.card->str,
@@ -264,6 +251,10 @@ main (int argc, char *argv[])
       g_info("no device monitor support\n");
     }
 
+  RecDeviceMonitor *devMon = rec_device_monitor_new ();
+  RecDeviceMonitor *devMon2 = rec_device_monitor_new ();
+  gst_object_unref (devMon2);
+
   gst_element_set_state (bin, GST_STATE_PLAYING);
 
   if (gst_element_get_state (bin, NULL, NULL, -1) == GST_STATE_CHANGE_FAILURE)
@@ -276,6 +267,7 @@ main (int argc, char *argv[])
 
   gst_object_unref (monBus);
   gst_object_unref (mon);
+  gst_object_unref (devMon);
 
  failure:
   gst_object_unref (bin);
