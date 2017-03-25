@@ -1,5 +1,8 @@
 #include "rec-device-monitor.h"
-#include "gudev/gudev.h"
+
+#include <gudev/gudev.h>
+#include <glib.h>
+#include <glib/gstdio.h>
 
 struct _RecDeviceMonitor
 {
@@ -15,7 +18,14 @@ enum {
   N_PROPS
 };
 
+enum {
+  ADD,
+  REMOVE,
+  N_SIGNALS
+};
+
 static GParamSpec *properties [N_PROPS];
+static guint signals [N_SIGNALS];
 
 RecDeviceMonitor *
 rec_device_monitor_new (void)
@@ -31,7 +41,33 @@ rec_device_monitor_uevent_handler (GUdevClient *client,
 {
   RecDeviceMonitor *self = (RecDeviceMonitor *)user_data;
 
-  g_debug ("sysfs path %s", g_udev_device_get_sysfs_path (device));
+  gboolean add = g_strcmp0 (action, "add") == 0;
+  gboolean remove = g_strcmp0 (action, "remove") == 0;
+
+  if (!(add || remove))
+    {
+      return;
+    }
+
+  if (remove)
+    {
+      g_signal_emit (self, signals[REMOVE], 0, g_udev_device_get_sysfs_path (device));
+      return;
+    }
+
+  GString *sysfs_path = g_string_new (g_udev_device_get_sysfs_path (device));
+  sysfs_path = g_string_append (sysfs_path, "/number");
+
+  gsize len;
+  gchar *content;
+  if (g_file_get_contents (sysfs_path->str, &content, &len, NULL)) {
+    g_strchomp (content);
+    g_debug ("card number %s", content);
+	g_free (content);
+  }
+
+  g_signal_emit (self, signals[ADD], 0, g_udev_device_get_sysfs_path (device));
+  g_string_free (sysfs_path, TRUE);
 }
 
 static void
@@ -89,6 +125,30 @@ rec_device_monitor_class_init (RecDeviceMonitorClass *klass)
   object_class->dispose = rec_device_monitor_dispose;
   object_class->get_property = rec_device_monitor_get_property;
   object_class->set_property = rec_device_monitor_set_property;
+  
+  signals [ADD] =
+    g_signal_new ("add",
+                  G_TYPE_FROM_CLASS (klass),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL,
+                  NULL,
+                  g_cclosure_marshal_VOID__STRING,
+                  G_TYPE_NONE,
+                  1,
+                  G_TYPE_STRING);
+
+  signals [REMOVE] =
+    g_signal_new ("remove",
+                  G_TYPE_FROM_CLASS (klass),
+                  G_SIGNAL_RUN_LAST,
+                  0,
+                  NULL,
+                  NULL,
+                  g_cclosure_marshal_VOID__STRING,
+                  G_TYPE_NONE,
+                  1,
+                  G_TYPE_STRING);
 }
 
 static void

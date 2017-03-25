@@ -9,9 +9,8 @@ G_BEGIN_DECLS
 
 G_DECLARE_FINAL_TYPE (RecRecorder, rec_recorder, REC, RECORDER, GObject)
 
-  RecRecorder *
-  rec_recorder_new (void);
-
+RecRecorder *
+rec_recorder_new (void);
 
 G_END_DECLS
 

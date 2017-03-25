@@ -9,9 +9,8 @@ G_BEGIN_DECLS
 
 G_DECLARE_FINAL_TYPE (RecDeviceMonitor, rec_device_monitor, REC, DEVICE_MONITOR, GObject)
 
-  RecDeviceMonitor *
-  rec_device_monitor_new (void);
-
+RecDeviceMonitor *
+rec_device_monitor_new (void);
 
 G_END_DECLS
 

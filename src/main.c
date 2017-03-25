@@ -69,7 +69,7 @@ debug_structure (GQuark field_id,
 }
 
 void
-debug_structure_fields (const GstStructure*s)
+debug_structure_fields (const GstStructure *s)
 {
   /* print msg structure names and type */
   for (int i = 0; i < gst_structure_n_fields (s); i++) {
@@ -166,6 +166,12 @@ pipeline_bus_handler (GstBus *bus,
   return TRUE;
 }
 
+void
+dev_handler (RecDeviceMonitor *mon, gchar *path, gpointer data)
+{
+  g_debug ("DEV %s", path);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -252,9 +258,10 @@ main (int argc, char *argv[])
     }
 
   RecDeviceMonitor *devMon = rec_device_monitor_new ();
-  RecDeviceMonitor *devMon2 = rec_device_monitor_new ();
-  gst_object_unref (devMon2);
+  g_signal_connect (devMon, "add", G_CALLBACK (dev_handler), NULL);
+  g_signal_connect (devMon, "remove", G_CALLBACK (dev_handler), NULL);
 
+  /*
   gst_element_set_state (bin, GST_STATE_PLAYING);
 
   if (gst_element_get_state (bin, NULL, NULL, -1) == GST_STATE_CHANGE_FAILURE)
@@ -262,13 +269,12 @@ main (int argc, char *argv[])
       g_error ("Failed to go into PLAYING state");
       goto failure;
     }
+  */
 
   g_main_loop_run (loop);
 
   gst_object_unref (monBus);
   gst_object_unref (mon);
   gst_object_unref (devMon);
-
- failure:
   gst_object_unref (bin);
 }
